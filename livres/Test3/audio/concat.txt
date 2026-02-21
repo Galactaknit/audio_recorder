@@ -1,0 +1,3 @@
+file '/home/galactaknit/Documents/Programmation/audio_recorder/livres/Test3/audio/Chap1.m4a'
+file '/home/galactaknit/Documents/Programmation/audio_recorder/livres/Test3/audio/Chap2.m4a'
+file '/home/galactaknit/Documents/Programmation/audio_recorder/livres/Test3/audio/Chap3.m4a'

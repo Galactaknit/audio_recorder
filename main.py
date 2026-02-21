@@ -1,6 +1,7 @@
 import gradio as gr
 from pydub import AudioSegment
 import os
+import re
 import json
 from datetime import datetime
 import subprocess
@@ -95,6 +96,19 @@ button.secondary:hover, .gr-button:hover {
     border-color: #c8a97e !important;
     color: #c8a97e !important;
 }
+.btn-delete button {
+    background: #1e1212 !important;
+    color: #c87e7e !important;
+    border: 1px solid #3a2020 !important;
+    border-radius: 8px !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 12px !important;
+    transition: all 0.2s ease !important;
+}
+.btn-delete button:hover {
+    background: #2a1515 !important;
+    border-color: #c87e7e !important;
+}
 .gr-dataframe table {
     background: #181818 !important;
     border-collapse: collapse !important;
@@ -159,6 +173,65 @@ button.secondary:hover, .gr-button:hover {
 
 
 # ============================================================
+#  Sanitisation des noms
+# ============================================================
+
+def sanitize_filename(name):
+    replacements = {
+        'à':'a','á':'a','â':'a','ã':'a','ä':'a','å':'a',
+        'æ':'ae','ç':'c',
+        'è':'e','é':'e','ê':'e','ë':'e',
+        'ì':'i','í':'i','î':'i','ï':'i',
+        'ð':'d','ñ':'n',
+        'ò':'o','ó':'o','ô':'o','õ':'o','ö':'o',
+        'ù':'u','ú':'u','û':'u','ü':'u',
+        'ý':'y','ÿ':'y',
+        'À':'A','Á':'A','Â':'A','Ã':'A','Ä':'A','Å':'A',
+        'Æ':'AE','Ç':'C',
+        'È':'E','É':'E','Ê':'E','Ë':'E',
+        'Ì':'I','Í':'I','Î':'I','Ï':'I',
+        'Ð':'D','Ñ':'N',
+        'Ò':'O','Ó':'O','Ô':'O','Õ':'O','Ö':'O',
+        'Ù':'U','Ú':'U','Û':'U','Ü':'U',
+        'Ý':'Y',
+    }
+    for src, dst in replacements.items():
+        name = name.replace(src, dst)
+
+    name = re.sub(r"['\u2018\u2019\u201a\u201b\u2032\u2035\"„\u201c\u201d«»`]", "", name)
+    name = re.sub(r"[\s\-_]+", "_", name)
+    name = re.sub(r"[^A-Za-z0-9_]", "", name)
+    name = re.sub(r"_+", "_", name)
+    name = name.strip("_")
+
+    return name
+
+
+# ============================================================
+#  Accès uniforme aux entrées de CHAPTERS_LIST
+#  Chaque entrée : [file_path, display_title, creation_index]
+# ============================================================
+
+def entry_path(e):
+    return e[0]
+
+def entry_title(e):
+    return e[1]
+
+def entry_index(e):
+    return e[2] if len(e) > 2 else 0
+
+def normalize_entry(e):
+    if len(e) == 2:
+        return [e[0], e[1], 0]
+    return list(e)
+
+def normalize_list():
+    for i, e in enumerate(CHAPTERS_LIST):
+        CHAPTERS_LIST[i] = normalize_entry(e)
+
+
+# ============================================================
 #  Chemins par livre
 # ============================================================
 
@@ -166,18 +239,15 @@ def book_dir(book_name):
     return os.path.join(ROOT_DIR, book_name)
 
 def audio_dir(book_name):
-    """Dossier des M4A."""
     return os.path.join(book_dir(book_name), "audio")
 
 def export_dir(book_name):
-    """Dossier du M4B final."""
     return os.path.join(book_dir(book_name), "export")
 
 def chapters_file(book_name):
     return os.path.join(book_dir(book_name), "chapters.json")
 
 def init_book_dirs(book_name):
-    """Crée toute la structure de dossiers d'un livre."""
     os.makedirs(audio_dir(book_name),  exist_ok=True)
     os.makedirs(export_dir(book_name), exist_ok=True)
 
@@ -196,12 +266,12 @@ def get_books_list():
 def create_book(book_name):
     global current_book, CHAPTERS_LIST
 
-    book_name = book_name.strip().replace(" ", "_")
+    book_name = sanitize_filename(book_name.strip())
     if not book_name:
-        return "Nom invalide.", gr.update(), gr.update(), gr.update()
+        return "Le nom n'est pas valide, essaie autre chose 🌸", gr.update(), gr.update(), gr.update()
 
     if os.path.exists(book_dir(book_name)):
-        return f"« {book_name} » existe déjà.", gr.update(), gr.update(), gr.update()
+        return f"Un livre « {book_name} » existe déjà !", gr.update(), gr.update(), gr.update()
 
     init_book_dirs(book_name)
     save_chapters_json(book_name, [])
@@ -210,7 +280,7 @@ def create_book(book_name):
     CHAPTERS_LIST.clear()
 
     return (
-        f"✓ Livre créé : {book_name}",
+        f"✓ Ton livre « {book_name} » est prêt !",
         gr.update(choices=get_books_list(), value=book_name),
         get_chapters_display(),
         _book_badge()
@@ -221,22 +291,22 @@ def switch_book(book_name):
     global current_book, CHAPTERS_LIST
 
     if not book_name:
-        return "Aucun livre sélectionné.", get_chapters_display(), _book_badge()
+        return "Aucun livre choisi.", get_chapters_display(), _book_badge()
 
-    # Migration : si le livre n'a pas encore les sous-dossiers, on les crée
     init_book_dirs(book_name)
 
     current_book = book_name
     CHAPTERS_LIST.clear()
     CHAPTERS_LIST.extend(load_chapters(book_name))
+    normalize_list()
 
-    return f"✓ Livre chargé : {book_name}", get_chapters_display(), _book_badge()
+    return f"✓ Tu travailles maintenant sur « {book_name} » 📖", get_chapters_display(), _book_badge()
 
 
 def _book_badge():
     if current_book:
-        return f'<div class="book-badge">📖 {current_book}</div>'
-    return '<div class="book-badge" style="color:#555;border-color:#2a2a2a;">Aucun livre sélectionné</div>'
+        return f'<div class="book-badge">📖 Livre ouvert : {current_book}</div>'
+    return '<div class="book-badge" style="color:#555;border-color:#2a2a2a;">Aucun livre ouvert pour l\'instant</div>'
 
 
 # ============================================================
@@ -247,13 +317,14 @@ def load_chapters(book_name):
     path = chapters_file(book_name)
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        return [normalize_entry(e) for e in data]
     return []
 
 
 def save_chapters_json(book_name, chapters):
     with open(chapters_file(book_name), "w", encoding="utf-8") as f:
-        json.dump(chapters, f, ensure_ascii=False, indent=2)
+        json.dump([list(e) for e in chapters], f, ensure_ascii=False, indent=2)
 
 
 # ============================================================
@@ -262,44 +333,88 @@ def save_chapters_json(book_name, chapters):
 
 def save_chapter(audio, chapter_title):
     if current_book is None:
-        return "⚠️  Sélectionnez un livre d'abord."
+        return "⚠️  Choisis d'abord un livre dans le menu en haut !"
     if audio is None:
-        return "⚠️  Aucun enregistrement."
+        return "⚠️  Tu n'as pas encore enregistré ta voix 🎤"
 
-    timestamp  = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_title = chapter_title.strip().replace(" ", "_") or f"chapitre_{timestamp}"
+    try:
+        timestamp     = datetime.now().strftime("%Y%m%d_%H%M%S")
+        display_title = chapter_title.strip() if chapter_title else ""
+        display_title = display_title or f"histoire_{timestamp}"
 
-    # ← M4A dans audio/
-    m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}.m4a")
+        safe_title = sanitize_filename(display_title) or f"histoire_{timestamp}"
 
-    sample_rate, data = audio
-    audio_segment = AudioSegment(
-        data.tobytes(),
-        frame_rate=sample_rate,
-        sample_width=data.dtype.itemsize,
-        channels=1
-    )
-    audio_segment.export(m4a_path, format="ipod")
+        m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}.m4a")
+        counter  = 1
+        while os.path.exists(m4a_path):
+            m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}_{counter}.m4a")
+            counter += 1
 
-    creation_index = len(CHAPTERS_LIST)
-    CHAPTERS_LIST.append((m4a_path, safe_title, creation_index))
-    save_chapters_json(current_book, CHAPTERS_LIST)
+        sample_rate, data = audio
+        audio_segment = AudioSegment(
+            data.tobytes(),
+            frame_rate=sample_rate,
+            sample_width=data.dtype.itemsize,
+            channels=1 if data.ndim == 1 else data.shape[1]
+        )
+        audio_segment.export(m4a_path, format="ipod")
 
-    return f"✓  Chapitre sauvegardé : {safe_title}"
+        creation_index = len(CHAPTERS_LIST)
+        CHAPTERS_LIST.append([m4a_path, display_title, creation_index])
+        save_chapters_json(current_book, CHAPTERS_LIST)
+
+        return f"✓  « {display_title} » a bien été enregistré 🌸"
+
+    except Exception as ex:
+        return f"❌  Quelque chose n'a pas fonctionné : {ex}"
+
+
+def delete_chapter(selected_index):
+    if selected_index is None:
+        return "⚠️  Clique d'abord sur un chapitre dans la liste.", get_chapters_display(), None
+    if current_book is None:
+        return "⚠️  Aucun livre ouvert.", get_chapters_display(), None
+
+    try:
+        idx = int(selected_index)
+        if idx < 0 or idx >= len(CHAPTERS_LIST):
+            return "⚠️  Ce chapitre n'existe plus.", get_chapters_display(), None
+
+        entry     = normalize_entry(CHAPTERS_LIST[idx])
+        file_path = entry_path(entry)
+        title     = entry_title(entry)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        CHAPTERS_LIST.pop(idx)
+        save_chapters_json(current_book, CHAPTERS_LIST)
+
+        return f"✓  « {title} » a été supprimé.", get_chapters_display(), None
+
+    except Exception as ex:
+        return f"❌  Erreur : {ex}", get_chapters_display(), None
 
 
 def get_chapters_display():
     if not CHAPTERS_LIST:
-        return [["—", "Aucun chapitre", "—"]]
+        return [["—", "Pas encore de chapitre", "—"]]
 
     rows = []
-    for idx, entry in enumerate(CHAPTERS_LIST):
-        file_path, title = entry[0], entry[1]
+    for idx, e in enumerate(CHAPTERS_LIST):
+        entry     = normalize_entry(e)
+        file_path = entry_path(entry)
+        title     = entry_title(entry)
+
         if os.path.exists(file_path):
-            audio    = AudioSegment.from_file(file_path)
-            duration = str(round(audio.duration_seconds, 1)) + "s"
+            try:
+                seg      = AudioSegment.from_file(file_path)
+                duration = str(round(seg.duration_seconds, 1)) + "s"
+            except Exception:
+                duration = "problème de lecture"
         else:
-            duration = "fichier manquant"
+            duration = "fichier introuvable"
+
         rows.append([idx + 1, title, duration])
 
     return rows
@@ -336,7 +451,7 @@ def move_chapter_down(selected_index):
 def reset_order():
     if current_book is None:
         return get_chapters_display(), None
-    CHAPTERS_LIST.sort(key=lambda e: e[2] if len(e) > 2 else 0)
+    CHAPTERS_LIST.sort(key=lambda e: entry_index(e))
     save_chapters_json(current_book, CHAPTERS_LIST)
     return get_chapters_display(), None
 
@@ -349,7 +464,7 @@ def preview_chapter(selection: gr.SelectData):
     if not CHAPTERS_LIST:
         return None, None
     idx       = selection.index[0]
-    file_path = CHAPTERS_LIST[idx][0]
+    file_path = entry_path(normalize_entry(CHAPTERS_LIST[idx]))
     if os.path.exists(file_path):
         return file_path, idx
     return None, None
@@ -361,123 +476,138 @@ def preview_chapter(selection: gr.SelectData):
 
 def export_m4b():
     if current_book is None:
-        return "⚠️  Aucun livre sélectionné."
+        return "⚠️  Ouvre d'abord un livre !"
     if not CHAPTERS_LIST:
-        return "⚠️  Aucun chapitre à exporter."
+        return "⚠️  Il n'y a encore aucun chapitre dans ce livre."
 
-    out_audio  = audio_dir(current_book)
-    out_export = export_dir(current_book)
+    try:
+        out_audio  = audio_dir(current_book)
+        out_export = export_dir(current_book)
 
-    # ── Nom de fichier unique ────────────────────────────────
-    base_name  = current_book
-    output_m4b = os.path.join(out_export, f"{base_name}.m4b")
-    counter    = 1
-    while os.path.exists(output_m4b):
-        output_m4b = os.path.join(out_export, f"{base_name}{counter}.m4b")
-        counter += 1
+        base_name  = current_book
+        output_m4b = os.path.join(out_export, f"{base_name}.m4b")
+        counter    = 1
+        while os.path.exists(output_m4b):
+            output_m4b = os.path.join(out_export, f"{base_name}{counter}.m4b")
+            counter += 1
 
-    # ── Fichiers temporaires ─────────────────────────────────
-    concat_file   = os.path.join(out_audio, "concat.txt")
-    metadata_file = os.path.join(out_audio, "metadata.txt")
+        concat_file   = os.path.join(out_audio, "concat.txt")
+        metadata_file = os.path.join(out_audio, "metadata.txt")
 
-    with open(concat_file, "w") as f:
-        for entry in CHAPTERS_LIST:
-            f.write(f"file '{os.path.abspath(entry[0])}'\n")
+        with open(concat_file, "w", encoding="utf-8") as f:
+            for e in CHAPTERS_LIST:
+                safe_path = os.path.abspath(entry_path(normalize_entry(e)))
+                safe_path = safe_path.replace("'", "'\\''")
+                f.write(f"file '{safe_path}'\n")
 
-    total_ms = 0
-    with open(metadata_file, "w", encoding="utf-8") as f:
-        f.write(";FFMETADATA1\n")
-        for entry in CHAPTERS_LIST:
-            file_path, title = entry[0], entry[1]
-            audio_segment    = AudioSegment.from_file(file_path)
-            duration_ms      = int(audio_segment.duration_seconds * 1000)
-            f.write("[CHAPTER]\n")
-            f.write("TIMEBASE=1/1000\n")
-            f.write(f"START={total_ms}\n")
-            f.write(f"END={total_ms + duration_ms}\n")
-            f.write(f"title={title}\n")
-            total_ms += duration_ms
+        total_ms = 0
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            f.write(";FFMETADATA1\n")
+            for e in CHAPTERS_LIST:
+                entry     = normalize_entry(e)
+                file_path = entry_path(entry)
+                title     = entry_title(entry)
 
-    # ── Commande FFmpeg ──────────────────────────────────────
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-f", "concat", "-safe", "0", "-i", concat_file,
-            "-i", metadata_file,
-            "-map_metadata", "1",
-            "-c", "copy",
-            output_m4b
-        ],
-        check=True
-    )
+                seg         = AudioSegment.from_file(file_path)
+                duration_ms = int(seg.duration_seconds * 1000)
 
-    return f"✓  Exporté : {output_m4b}"
+                safe_title = (
+                    title
+                    .replace("\\", "\\\\")
+                    .replace("=",  "\\=")
+                    .replace(";",  "\\;")
+                    .replace("#",  "\\#")
+                    .replace("\n", " ")
+                )
+
+                f.write("[CHAPTER]\n")
+                f.write("TIMEBASE=1/1000\n")
+                f.write(f"START={total_ms}\n")
+                f.write(f"END={total_ms + duration_ms}\n")
+                f.write(f"title={safe_title}\n")
+                total_ms += duration_ms
+
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0", "-i", concat_file,
+                "-i", metadata_file,
+                "-map_metadata", "1",
+                "-c", "copy",
+                output_m4b
+            ],
+            check=True
+        )
+
+        return f"✓  Ton livre audio est prêt ! Tu le trouveras ici : {output_m4b} 🎉"
+
+    except Exception as ex:
+        return f"❌  Quelque chose n'a pas fonctionné : {ex}"
 
 
 # ============================================================
 #  Interface Gradio
 # ============================================================
 
-with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
+with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
 
     # ── En-tête ──────────────────────────────────────────────
     gr.HTML("""
         <div style="padding: 32px 0 24px 0;">
             <div style="font-family:'Fraunces',serif; font-size:32px; font-weight:300;
                         color:#f5efe6; letter-spacing:-0.02em; margin-bottom:6px;">
-                Audiobook Studio
+                Studio de Mamie 🎧
             </div>
             <div style="font-family:'DM Mono',monospace; font-size:11px;
                         color:#4a4540; letter-spacing:0.15em; text-transform:uppercase;">
-                Enregistrement · Chapitres · Export M4B
+                Enregistre ta voix · Crée tes histoires · Écoute ton livre
             </div>
         </div>
     """)
 
     # ── Gestion des livres (accordéon) ───────────────────────
-    with gr.Accordion("📚  Gestion des livres", open=False):
+    with gr.Accordion("📚  Mes livres audio", open=False):
         book_badge = gr.HTML(_book_badge())
 
         gr.HTML('<div style="height:12px"></div>')
 
         with gr.Row():
             book_selector = gr.Dropdown(
-                label="Livres existants",
+                label="Choisir un de mes livres",
                 choices=get_books_list(),
                 value=None,
                 interactive=True,
                 scale=3
             )
-            switch_button = gr.Button("📂  Charger ce livre", scale=1, variant="primary")
+            switch_button = gr.Button("📂  Ouvrir ce livre", scale=1, variant="primary")
 
         gr.HTML('<hr class="divider">')
 
         with gr.Row():
             new_book_name = gr.Textbox(
-                label="Créer un nouveau livre",
-                placeholder="Titre du livre...",
+                label="Créer un tout nouveau livre",
+                placeholder="ex : Mes souvenirs d'enfance, Les recettes de famille...",
                 scale=3
             )
-            create_book_button = gr.Button("➕  Créer", scale=1, variant="primary")
+            create_book_button = gr.Button("✨  Créer", scale=1, variant="primary")
 
         switch_status = gr.Textbox(
-            label="Statut",
+            label="Ce qui se passe...",
             interactive=False,
             elem_classes=["status-box"]
         )
 
-        # Arborescence affichée pour l'utilisateur
         gr.HTML("""
             <div style="margin-top:16px; font-family:'DM Mono',monospace;
                         font-size:11px; color:#4a4540; line-height:1.8;">
                 <div style="color:#6b6560; letter-spacing:0.1em; margin-bottom:6px;">
-                    STRUCTURE DES DOSSIERS
+                    OÙ SONT SAUVEGARDÉS TES FICHIERS
                 </div>
                 livres/<br>
                 &nbsp;&nbsp;└── MonLivre/<br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── chapters.json<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── audio/&nbsp;&nbsp;&nbsp;← fichiers .m4a<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── export/&nbsp;&nbsp;← fichier .m4b
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── audio/&nbsp;&nbsp;&nbsp;← tes enregistrements<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── export/&nbsp;&nbsp;← ton livre audio fini
             </div>
         """)
 
@@ -491,21 +621,21 @@ with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
             gr.HTML("""
                 <div style="font-family:'Fraunces',serif; font-size:18px;
                             color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    🎙  Enregistrement
+                    🎙  Ma voix
                 </div>
             """)
             chapter_title = gr.Textbox(
-                label="Titre du chapitre",
-                placeholder="ex : Chapitre 1 — L'aube"
+                label="Nom de ce chapitre",
+                placeholder="ex : Le jardin de mon enfance, La rencontre de papy..."
             )
             audio_input = gr.Audio(
                 sources=["microphone"],
                 type="numpy",
-                label="Microphone"
+                label="Appuie ici pour parler 🎤"
             )
-            save_button = gr.Button("💾  Sauvegarder le chapitre", variant="primary")
+            save_button = gr.Button("💾  Sauvegarder ce chapitre", variant="primary")
             status = gr.Textbox(
-                label="Statut",
+                label="Ce qui se passe...",
                 interactive=False,
                 elem_classes=["status-box"]
             )
@@ -515,12 +645,12 @@ with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
             gr.HTML("""
                 <div style="font-family:'Fraunces',serif; font-size:18px;
                             color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    📦  Export
+                    📦  Mon livre fini
                 </div>
             """)
-            export_button = gr.Button("Exporter en M4B", variant="primary")
+            export_button = gr.Button("🎉  Créer mon livre audio", variant="primary")
             export_status = gr.Textbox(
-                label="Statut export",
+                label="Ton livre est prêt ?",
                 interactive=False,
                 elem_classes=["status-box"]
             )
@@ -530,26 +660,39 @@ with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
             gr.HTML("""
                 <div style="font-family:'Fraunces',serif; font-size:18px;
                             color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    📋  Chapitres
+                    📋  Mes chapitres enregistrés
                 </div>
             """)
             chapters_table = gr.DataFrame(
-                headers=["#", "Titre", "Durée"],
+                headers=["N°", "Chapitre", "Durée"],
                 datatype=["number", "str", "str"],
                 interactive=False,
                 label=None
             )
+
             with gr.Row():
-                move_up_button     = gr.Button("⬆  Monter")
-                move_down_button   = gr.Button("⬇  Descendre")
-                reset_order_button = gr.Button("🔁  Ordre original")
-                refresh_button     = gr.Button("🔄  Rafraîchir")
+                move_up_button     = gr.Button("⬆  Mettre avant")
+                move_down_button   = gr.Button("⬇  Mettre après")
+                reset_order_button = gr.Button("🔁  Ordre d'origine")
+                refresh_button     = gr.Button("🔄  Actualiser")
+
+            with gr.Row():
+                delete_button = gr.Button(
+                    "🗑  Supprimer le chapitre sélectionné",
+                    elem_classes=["btn-delete"]
+                )
+
+            delete_status = gr.Textbox(
+                label="Suppression...",
+                interactive=False,
+                elem_classes=["status-box"]
+            )
 
             gr.HTML('<div style="height:16px"></div>')
             gr.HTML("""
                 <div style="font-family:'Fraunces',serif; font-size:16px;
                             color:#f5efe6; font-weight:300; margin-bottom:8px;">
-                    🎧  Preview
+                    🎧  Écouter ce chapitre
                 </div>
             """)
             preview_player = gr.Audio(label=None, interactive=False)
@@ -583,6 +726,12 @@ with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
         outputs=audio_input
     )
 
+    delete_button.click(
+        fn=delete_chapter,
+        inputs=selected_index,
+        outputs=[delete_status, chapters_table, selected_index]
+    )
+
     export_button.click(fn=export_m4b, outputs=export_status)
 
     refresh_button.click(fn=get_chapters_display, outputs=chapters_table)
@@ -612,4 +761,4 @@ with gr.Blocks(title="Audiobook Studio", css=CUSTOM_CSS) as app:
     app.load(fn=get_chapters_display, outputs=chapters_table)
 
 
-app.launch()
+app.launch(inbrowser=True)
