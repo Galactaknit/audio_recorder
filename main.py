@@ -5,6 +5,7 @@ import re
 import json
 from datetime import datetime
 import subprocess
+import sys
 
 
 # ============================================================
@@ -16,6 +17,8 @@ os.makedirs(ROOT_DIR, exist_ok=True)
 
 current_book  = None
 CHAPTERS_LIST = []
+
+IS_WINDOWS = sys.platform.startswith("win")
 
 
 # ============================================================
@@ -458,6 +461,13 @@ def save_chapters_json(book_name, chapters):
 # ============================================================
 
 def save_chapter(audio, chapter_title):
+    """
+    FIX Windows :
+    - On exporte d'abord en WAV (toujours disponible sans codec externe).
+    - On convertit ensuite en AAC/M4A via ffmpeg si disponible,
+      sinon on garde le WAV (Gradio et pydub le lisent parfaitement).
+    - On utilise os.path pour les chemins (pas de slashes Unix hardcodés).
+    """
     if current_book is None:
         return "⚠️  Choisis d'abord un livre dans le menu en haut !"
     if audio is None:
@@ -468,11 +478,16 @@ def save_chapter(audio, chapter_title):
         display_title = (chapter_title.strip() if chapter_title else "") or f"histoire_{timestamp}"
         safe_title    = sanitize_filename(display_title) or f"histoire_{timestamp}"
 
-        m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}.m4a")
-        counter  = 1
-        while os.path.exists(m4a_path):
-            m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}_{counter}.m4a")
-            counter += 1
+        dest_dir = audio_dir(current_book)
+
+        # ── Cherche un nom de fichier libre ──────────────────
+        def free_path(ext):
+            p = os.path.join(dest_dir, f"{safe_title}.{ext}")
+            c = 1
+            while os.path.exists(p):
+                p = os.path.join(dest_dir, f"{safe_title}_{c}.{ext}")
+                c += 1
+            return p
 
         sample_rate, data = audio
         audio_segment = AudioSegment(
@@ -481,12 +496,53 @@ def save_chapter(audio, chapter_title):
             sample_width=data.dtype.itemsize,
             channels=1 if data.ndim == 1 else data.shape[1]
         )
-        audio_segment.export(m4a_path, format="ipod")
 
-        CHAPTERS_LIST.append([m4a_path, display_title, len(CHAPTERS_LIST)])
+        # ── Essaie M4A via ffmpeg, sinon fallback WAV ────────
+        saved_path = None
+        ffmpeg_ok  = False
+
+        # Vérifie si ffmpeg est dispo
+        try:
+            subprocess.run(
+                ["ffmpeg", "-version"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+            ffmpeg_ok = True
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            ffmpeg_ok = False
+
+        if ffmpeg_ok:
+            # Export WAV temporaire → convertit en M4A avec ffmpeg
+            wav_tmp = free_path("tmp.wav")
+            audio_segment.export(wav_tmp, format="wav")
+            m4a_path = free_path("m4a")
+            try:
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", wav_tmp,
+                     "-c:a", "aac", "-b:a", "128k", m4a_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=True
+                )
+                os.remove(wav_tmp)
+                saved_path = m4a_path
+            except subprocess.CalledProcessError:
+                # Conversion AAC échouée → garde le WAV
+                os.rename(wav_tmp, free_path("wav"))
+                saved_path = free_path("wav")
+        else:
+            # Pas de ffmpeg → WAV directement (pydub natif)
+            wav_path = free_path("wav")
+            audio_segment.export(wav_path, format="wav")
+            saved_path = wav_path
+
+        CHAPTERS_LIST.append([saved_path, display_title, len(CHAPTERS_LIST)])
         save_chapters_json(current_book, CHAPTERS_LIST)
 
-        return f"✓  « {display_title} » a bien été enregistré 🌸"
+        ext = os.path.splitext(saved_path)[1].upper()
+        return f"✓  « {display_title} » a bien été enregistré {ext} 🌸"
 
     except Exception as ex:
         return f"❌  Quelque chose n'a pas fonctionné : {ex}"
@@ -582,6 +638,9 @@ def preview_chapter(selection: gr.SelectData):
 
 # ============================================================
 #  Export M4B
+#  FIX Windows : le fichier concat.txt utilise des chemins
+#  avec forward-slashes et guillemets doubles (syntaxe ffmpeg
+#  sur Windows), et on passe shell=False avec liste d'args.
 # ============================================================
 
 def export_m4b():
@@ -603,11 +662,24 @@ def export_m4b():
         concat_file   = os.path.join(out_audio, "concat.txt")
         metadata_file = os.path.join(out_audio, "metadata.txt")
 
+        # ── concat.txt ──────────────────────────────────────
+        # ffmpeg attend des forward-slashes même sur Windows,
+        # et les chemins sont entourés de guillemets simples
+        # SAUF si le chemin contient une apostrophe → on échappe
+        # différemment selon l'OS.
         with open(concat_file, "w", encoding="utf-8") as f:
             for e in CHAPTERS_LIST:
-                p = os.path.abspath(entry_path(normalize_entry(e))).replace("'", "'\\''")
-                f.write(f"file '{p}'\n")
+                # Normalise en forward-slashes (ffmpeg les accepte partout)
+                p = os.path.abspath(entry_path(normalize_entry(e))).replace("\\", "/")
+                if IS_WINDOWS:
+                    # Sur Windows, ffmpeg accepte les guillemets doubles
+                    p_escaped = p.replace("'", "\\'")
+                    f.write(f"file '{p_escaped}'\n")
+                else:
+                    p_escaped = p.replace("'", "'\\''")
+                    f.write(f"file '{p_escaped}'\n")
 
+        # ── metadata.txt ─────────────────────────────────────
         total_ms = 0
         with open(metadata_file, "w", encoding="utf-8") as f:
             f.write(";FFMETADATA1\n")
@@ -624,6 +696,7 @@ def export_m4b():
                 f.write(f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={total_ms}\nEND={total_ms+dur}\ntitle={t}\n")
                 total_ms += dur
 
+        # ── Appel ffmpeg (shell=False → pas de problème de quoting shell) ──
         subprocess.run(
             ["ffmpeg", "-y",
              "-f", "concat", "-safe", "0", "-i", concat_file,
@@ -633,6 +706,8 @@ def export_m4b():
         )
         return f"✓  Ton livre audio est prêt ! Tu le trouveras ici : {output_m4b} 🎉"
 
+    except FileNotFoundError:
+        return "❌  ffmpeg est introuvable. Installe-le depuis https://ffmpeg.org et ajoute-le au PATH."
     except Exception as ex:
         return f"❌  Quelque chose n'a pas fonctionné : {ex}"
 
