@@ -17,157 +17,311 @@ os.makedirs(ROOT_DIR, exist_ok=True)
 current_book  = None
 CHAPTERS_LIST = []
 
-# Structure d'un livre :
-#   livres/
-#     └── MonLivre/
-#           ├── chapters.json
-#           ├── audio/        ← fichiers M4A (chapitres)
-#           └── export/       ← fichier M4B final
-
 
 # ============================================================
-#  CSS personnalisé
+#  CSS — Toutes les couleurs centralisées dans :root
+# ============================================================
+#
+#  Pour changer une couleur, modifie UNIQUEMENT le bloc :root.
+#  Chaque variable est nommée par son RÔLE, pas sa teinte.
+#
+#  FONDS
+#    --color-bg-page       fond général de la page
+#    --color-bg-panel      fond des panneaux, accordéons
+#    --color-bg-input      fond des champs texte, dropdowns
+#    --color-bg-subtle     fond des status boxes, en-têtes tableau
+#    --color-bg-hover      fond au survol (lignes tableau, boutons)
+#
+#  BORDURES
+#    --color-border        bordures standard
+#    --color-border-focus  bordure au focus (inputs)
+#
+#  TEXTES
+#    --color-text-main     texte principal
+#    --color-text-soft     labels, textes secondaires
+#    --color-text-muted    textes très discrets, placeholders
+#
+#  ACCENT (boutons primaires, badge, focus)
+#    --color-accent
+#    --color-accent-hover
+#    --color-accent-light  fond transparent de l'accent
+#    --color-accent-border bordure transparente de l'accent
+#    --color-accent-text   texte sur fond accent
+#
+#  DANGER (bouton supprimer)
+#    --color-danger
+#    --color-danger-bg
+#    --color-danger-border
+#
 # ============================================================
 
 CUSTOM_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;400;600&display=swap');
 
-body, .gradio-container {
-    background: #0f0f0f !important;
-    font-family: 'DM Mono', monospace !important;
-    color: #e8e2d9 !important;
+:root {
+    /* ── Fonds ── */
+    --color-bg-page:      #faf8f5;   /* blanc cassé chaud — fond général         */
+    --color-bg-panel:     #f4ede4;   /* sable très clair — panneaux, tableau     */
+    --color-bg-input:     #efe6da;   /* sable doux — champs texte, dropdowns     */
+    --color-bg-subtle:    #e8ddd2;   /* sable moyen — en-têtes tableau, status   */
+    --color-bg-hover:     #e0d4c6;   /* sable soutenu — survol                   */
+
+    /* ── Bordures ── */
+    --color-border:       #cfc3b5;   /* beige grisé — bordures standard          */
+    --color-border-focus: #9a7455;   /* brun chaud — bordure au focus            */
+
+    /* ── Textes ── */
+    --color-text-main:    #2c2420;   /* brun quasi-noir — texte principal        */
+    --color-text-soft:    #6e6258;   /* brun moyen — labels, secondaire          */
+    --color-text-muted:   #a0948a;   /* brun clair — discret, placeholders       */
+
+    /* ── Accent ── */
+    --color-accent:        #9a7455;   /* brun-caramel — boutons primaires, badge  */
+    --color-accent-hover:  #7d5c3f;   /* brun foncé — survol boutons primaires    */
+    --color-accent-light:  rgba(154,116,85,0.10);
+    --color-accent-border: rgba(154,116,85,0.30);
+    --color-accent-text:   #faf8f5;   /* quasi-blanc — texte sur fond accent      */
+
+    /* ── Danger ── */
+    --color-danger:        #9e4e4e;
+    --color-danger-bg:     #fdf0f0;
+    --color-danger-border: #ddbebe;
+
+    /* ── Typographie ── */
+    --font-display: 'Fraunces', serif;
+    --font-mono:    'DM Mono', monospace;
 }
-h1, h2, h3, .gr-markdown h1, .gr-markdown h2, .gr-markdown h3 {
-    font-family: 'Fraunces', serif !important;
+
+/* ── Reset global ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body,
+.gradio-container,
+.gradio-container > *,
+.dark, [data-theme] {
+    background-color: var(--color-bg-page) !important;
+    color: var(--color-text-main) !important;
+    font-family: var(--font-mono) !important;
+}
+
+/* ── Titres ── */
+h1, h2, h3 {
+    font-family: var(--font-display) !important;
     font-weight: 300 !important;
     letter-spacing: -0.02em !important;
-    color: #f5efe6 !important;
+    color: var(--color-text-main) !important;
 }
-label, .gr-form label {
-    font-family: 'DM Mono', monospace !important;
+
+/* ── Labels ── */
+label, span.svelte-1gfkfd6 {
+    font-family: var(--font-mono) !important;
     font-size: 11px !important;
-    letter-spacing: 0.12em !important;
+    letter-spacing: 0.1em !important;
     text-transform: uppercase !important;
-    color: #6b6560 !important;
+    color: var(--color-text-soft) !important;
 }
-input[type="text"], textarea, .gr-textbox textarea, .gr-textbox input {
-    background: #1e1e1e !important;
-    border: 1px solid #2e2e2e !important;
+
+/* ── Inputs & Textareas ── */
+input, textarea,
+.gr-textbox input,
+.gr-textbox textarea,
+input[type="text"] {
+    background: var(--color-bg-input) !important;
+    border: 1px solid var(--color-border) !important;
     border-radius: 8px !important;
-    color: #e8e2d9 !important;
-    font-family: 'DM Mono', monospace !important;
+    color: var(--color-text-main) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 13px !important;
 }
-input[type="text"]:focus, textarea:focus {
-    border-color: #c8a97e !important;
-    box-shadow: 0 0 0 2px rgba(200,169,126,0.15) !important;
+input:focus, textarea:focus {
+    border-color: var(--color-border-focus) !important;
+    box-shadow: 0 0 0 2px var(--color-accent-light) !important;
+    outline: none !important;
 }
-.gr-dropdown select, .gr-dropdown > div {
-    background: #1e1e1e !important;
-    border: 1px solid #2e2e2e !important;
-    color: #e8e2d9 !important;
-    font-family: 'DM Mono', monospace !important;
+
+/* ── Dropdown ── */
+.gr-dropdown, .gr-dropdown > div, select {
+    background: var(--color-bg-input) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-text-main) !important;
+    font-family: var(--font-mono) !important;
+    border-radius: 8px !important;
 }
-button.primary {
-    background: #c8a97e !important;
-    color: #0f0f0f !important;
+
+/* ── Boutons primaires ── */
+button.primary, .gr-button.primary {
+    background: var(--color-accent) !important;
+    color: var(--color-accent-text) !important;
     border: none !important;
     border-radius: 8px !important;
-    font-family: 'DM Mono', monospace !important;
+    font-family: var(--font-mono) !important;
     font-size: 12px !important;
     letter-spacing: 0.08em !important;
     font-weight: 500 !important;
-    transition: all 0.2s ease !important;
+    transition: background 0.2s ease, transform 0.15s ease !important;
 }
 button.primary:hover {
-    background: #e0c09a !important;
+    background: var(--color-accent-hover) !important;
     transform: translateY(-1px) !important;
 }
-button.secondary, .gr-button {
-    background: #1e1e1e !important;
-    color: #e8e2d9 !important;
-    border: 1px solid #2e2e2e !important;
+
+/* ── Boutons secondaires ── */
+button.secondary, .gr-button, button {
+    background: var(--color-bg-subtle) !important;
+    color: var(--color-text-main) !important;
+    border: 1px solid var(--color-border) !important;
     border-radius: 8px !important;
-    font-family: 'DM Mono', monospace !important;
+    font-family: var(--font-mono) !important;
     font-size: 12px !important;
-    letter-spacing: 0.06em !important;
-    transition: all 0.2s ease !important;
+    letter-spacing: 0.05em !important;
+    transition: border-color 0.2s, background 0.2s !important;
 }
-button.secondary:hover, .gr-button:hover {
-    border-color: #c8a97e !important;
-    color: #c8a97e !important;
+button.secondary:hover, .gr-button:hover, button:hover {
+    background: var(--color-bg-hover) !important;
+    border-color: var(--color-accent) !important;
 }
+
+/* ── Bouton supprimer ── */
 .btn-delete button {
-    background: #1e1212 !important;
-    color: #c87e7e !important;
-    border: 1px solid #3a2020 !important;
-    border-radius: 8px !important;
-    font-family: 'DM Mono', monospace !important;
-    font-size: 12px !important;
-    transition: all 0.2s ease !important;
+    background: var(--color-danger-bg) !important;
+    color: var(--color-danger) !important;
+    border: 1px solid var(--color-danger-border) !important;
 }
 .btn-delete button:hover {
-    background: #2a1515 !important;
-    border-color: #c87e7e !important;
+    filter: brightness(0.95) !important;
+    border-color: var(--color-danger) !important;
 }
-.gr-dataframe table {
-    background: #181818 !important;
+
+/* ── Panneaux / blocs ── */
+.gr-panel, .gr-box, .gradio-container .prose {
+    background: var(--color-bg-panel) !important;
+    border-color: var(--color-border) !important;
+}
+
+/* ── Accordion ── */
+.gr-accordion, details, details > summary {
+    background: var(--color-bg-panel) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 10px !important;
+    color: var(--color-text-main) !important;
+}
+
+/* ── Tableau ── */
+table {
+    background: var(--color-bg-panel) !important;
     border-collapse: collapse !important;
     width: 100% !important;
-    font-family: 'DM Mono', monospace !important;
+    font-family: var(--font-mono) !important;
     font-size: 13px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
 }
-.gr-dataframe th {
-    background: #1e1e1e !important;
-    color: #6b6560 !important;
+th {
+    background: var(--color-bg-subtle) !important;
+    color: var(--color-text-soft) !important;
     font-size: 10px !important;
     letter-spacing: 0.15em !important;
     text-transform: uppercase !important;
     padding: 10px 14px !important;
-    border-bottom: 1px solid #2a2a2a !important;
+    border-bottom: 1px solid var(--color-border) !important;
 }
-.gr-dataframe td {
+td {
     padding: 10px 14px !important;
-    border-bottom: 1px solid #1e1e1e !important;
-    color: #e8e2d9 !important;
+    border-bottom: 1px solid var(--color-bg-subtle) !important;
+    color: var(--color-text-main) !important;
+    background: var(--color-bg-panel) !important;
 }
-.gr-dataframe tr:hover td { background: #1e1e1e !important; }
-.gr-dataframe tr.selected td {
-    background: rgba(200,169,126,0.1) !important;
-    border-left: 2px solid #c8a97e !important;
+tr:hover td {
+    background: var(--color-bg-hover) !important;
 }
+
+/* ── Status boxes ── */
 .status-box textarea {
-    background: #111 !important;
-    border: 1px solid #1e1e1e !important;
-    color: #6b6560 !important;
+    background: var(--color-bg-subtle) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-text-soft) !important;
     font-size: 12px !important;
     border-radius: 6px !important;
+    font-style: italic !important;
 }
-.gr-audio {
-    background: #181818 !important;
-    border: 1px solid #2a2a2a !important;
+
+/* ── Audio player ── */
+.gr-audio, audio {
+    background: var(--color-bg-panel) !important;
+    border: 1px solid var(--color-border) !important;
     border-radius: 10px !important;
 }
+
+/* ── Badge livre actif ── */
 .book-badge {
     display: inline-block;
-    background: rgba(200,169,126,0.12);
-    border: 1px solid rgba(200,169,126,0.3);
+    background: var(--color-accent-light);
+    border: 1px solid var(--color-accent-border);
     border-radius: 6px;
     padding: 6px 14px;
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
-    color: #c8a97e;
+    color: var(--color-accent);
     letter-spacing: 0.08em;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
 }
-.gr-accordion {
-    background: #181818 !important;
-    border: 1px solid #2a2a2a !important;
-    border-radius: 10px !important;
-}
+
+/* ── Divider ── */
 .divider {
     border: none;
-    border-top: 1px solid #2a2a2a;
-    margin: 8px 0 16px 0;
+    border-top: 1px solid var(--color-border);
+    margin: 12px 0 16px 0;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-page); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ── Titres inline (gr.HTML) ── */
+.section-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--color-text-main);
+    margin-bottom: 16px;
+}
+.section-title-sm {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--color-text-main);
+    margin: 16px 0 8px 0;
+}
+.app-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--color-text-main);
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+}
+.app-subtitle {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-soft);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+.folder-tree {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-soft);
+    line-height: 1.9;
+    margin-top: 14px;
+}
+.folder-tree-title {
+    color: var(--color-accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 10px;
+    margin-bottom: 6px;
 }
 """
 
@@ -203,7 +357,6 @@ def sanitize_filename(name):
     name = re.sub(r"[^A-Za-z0-9_]", "", name)
     name = re.sub(r"_+", "_", name)
     name = name.strip("_")
-
     return name
 
 
@@ -212,14 +365,9 @@ def sanitize_filename(name):
 #  Chaque entrée : [file_path, display_title, creation_index]
 # ============================================================
 
-def entry_path(e):
-    return e[0]
-
-def entry_title(e):
-    return e[1]
-
-def entry_index(e):
-    return e[2] if len(e) > 2 else 0
+def entry_path(e):  return e[0]
+def entry_title(e): return e[1]
+def entry_index(e): return e[2] if len(e) > 2 else 0
 
 def normalize_entry(e):
     if len(e) == 2:
@@ -235,21 +383,14 @@ def normalize_list():
 #  Chemins par livre
 # ============================================================
 
-def book_dir(book_name):
-    return os.path.join(ROOT_DIR, book_name)
+def book_dir(n):      return os.path.join(ROOT_DIR, n)
+def audio_dir(n):     return os.path.join(book_dir(n), "audio")
+def export_dir(n):    return os.path.join(book_dir(n), "export")
+def chapters_file(n): return os.path.join(book_dir(n), "chapters.json")
 
-def audio_dir(book_name):
-    return os.path.join(book_dir(book_name), "audio")
-
-def export_dir(book_name):
-    return os.path.join(book_dir(book_name), "export")
-
-def chapters_file(book_name):
-    return os.path.join(book_dir(book_name), "chapters.json")
-
-def init_book_dirs(book_name):
-    os.makedirs(audio_dir(book_name),  exist_ok=True)
-    os.makedirs(export_dir(book_name), exist_ok=True)
+def init_book_dirs(n):
+    os.makedirs(audio_dir(n),  exist_ok=True)
+    os.makedirs(export_dir(n), exist_ok=True)
 
 
 # ============================================================
@@ -257,10 +398,8 @@ def init_book_dirs(book_name):
 # ============================================================
 
 def get_books_list():
-    return [
-        d for d in sorted(os.listdir(ROOT_DIR))
-        if os.path.isdir(os.path.join(ROOT_DIR, d))
-    ]
+    return [d for d in sorted(os.listdir(ROOT_DIR))
+            if os.path.isdir(os.path.join(ROOT_DIR, d))]
 
 
 def create_book(book_name):
@@ -269,13 +408,11 @@ def create_book(book_name):
     book_name = sanitize_filename(book_name.strip())
     if not book_name:
         return "Le nom n'est pas valide, essaie autre chose 🌸", gr.update(), gr.update(), gr.update()
-
     if os.path.exists(book_dir(book_name)):
         return f"Un livre « {book_name} » existe déjà !", gr.update(), gr.update(), gr.update()
 
     init_book_dirs(book_name)
     save_chapters_json(book_name, [])
-
     current_book = book_name
     CHAPTERS_LIST.clear()
 
@@ -294,7 +431,6 @@ def switch_book(book_name):
         return "Aucun livre choisi.", get_chapters_display(), _book_badge()
 
     init_book_dirs(book_name)
-
     current_book = book_name
     CHAPTERS_LIST.clear()
     CHAPTERS_LIST.extend(load_chapters(book_name))
@@ -306,7 +442,7 @@ def switch_book(book_name):
 def _book_badge():
     if current_book:
         return f'<div class="book-badge">📖 Livre ouvert : {current_book}</div>'
-    return '<div class="book-badge" style="color:#555;border-color:#2a2a2a;">Aucun livre ouvert pour l\'instant</div>'
+    return '<div class="book-badge" style="color:var(--color-text-muted);border-color:var(--color-border);">Aucun livre ouvert pour l\'instant</div>'
 
 
 # ============================================================
@@ -339,10 +475,8 @@ def save_chapter(audio, chapter_title):
 
     try:
         timestamp     = datetime.now().strftime("%Y%m%d_%H%M%S")
-        display_title = chapter_title.strip() if chapter_title else ""
-        display_title = display_title or f"histoire_{timestamp}"
-
-        safe_title = sanitize_filename(display_title) or f"histoire_{timestamp}"
+        display_title = (chapter_title.strip() if chapter_title else "") or f"histoire_{timestamp}"
+        safe_title    = sanitize_filename(display_title) or f"histoire_{timestamp}"
 
         m4a_path = os.path.join(audio_dir(current_book), f"{safe_title}.m4a")
         counter  = 1
@@ -359,8 +493,7 @@ def save_chapter(audio, chapter_title):
         )
         audio_segment.export(m4a_path, format="ipod")
 
-        creation_index = len(CHAPTERS_LIST)
-        CHAPTERS_LIST.append([m4a_path, display_title, creation_index])
+        CHAPTERS_LIST.append([m4a_path, display_title, len(CHAPTERS_LIST)])
         save_chapters_json(current_book, CHAPTERS_LIST)
 
         return f"✓  « {display_title} » a bien été enregistré 🌸"
@@ -376,20 +509,16 @@ def delete_chapter(selected_index):
         return "⚠️  Aucun livre ouvert.", get_chapters_display(), None
 
     try:
-        idx = int(selected_index)
-        if idx < 0 or idx >= len(CHAPTERS_LIST):
-            return "⚠️  Ce chapitre n'existe plus.", get_chapters_display(), None
+        idx   = int(selected_index)
+        entry = normalize_entry(CHAPTERS_LIST[idx])
+        fp    = entry_path(entry)
+        title = entry_title(entry)
 
-        entry     = normalize_entry(CHAPTERS_LIST[idx])
-        file_path = entry_path(entry)
-        title     = entry_title(entry)
-
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if os.path.exists(fp):
+            os.remove(fp)
 
         CHAPTERS_LIST.pop(idx)
         save_chapters_json(current_book, CHAPTERS_LIST)
-
         return f"✓  « {title} » a été supprimé.", get_chapters_display(), None
 
     except Exception as ex:
@@ -402,13 +531,13 @@ def get_chapters_display():
 
     rows = []
     for idx, e in enumerate(CHAPTERS_LIST):
-        entry     = normalize_entry(e)
-        file_path = entry_path(entry)
-        title     = entry_title(entry)
+        entry = normalize_entry(e)
+        fp    = entry_path(entry)
+        title = entry_title(entry)
 
-        if os.path.exists(file_path):
+        if os.path.exists(fp):
             try:
-                seg      = AudioSegment.from_file(file_path)
+                seg      = AudioSegment.from_file(fp)
                 duration = str(round(seg.duration_seconds, 1)) + "s"
             except Exception:
                 duration = "problème de lecture"
@@ -416,7 +545,6 @@ def get_chapters_display():
             duration = "fichier introuvable"
 
         rows.append([idx + 1, title, duration])
-
     return rows
 
 
@@ -426,10 +554,7 @@ def move_chapter_up(selected_index):
     idx = int(selected_index)
     if idx <= 0:
         return get_chapters_display(), selected_index
-
-    CHAPTERS_LIST[idx], CHAPTERS_LIST[idx - 1] = \
-        CHAPTERS_LIST[idx - 1], CHAPTERS_LIST[idx]
-
+    CHAPTERS_LIST[idx], CHAPTERS_LIST[idx - 1] = CHAPTERS_LIST[idx - 1], CHAPTERS_LIST[idx]
     save_chapters_json(current_book, CHAPTERS_LIST)
     return get_chapters_display(), idx - 1
 
@@ -440,10 +565,7 @@ def move_chapter_down(selected_index):
     idx = int(selected_index)
     if idx >= len(CHAPTERS_LIST) - 1:
         return get_chapters_display(), selected_index
-
-    CHAPTERS_LIST[idx], CHAPTERS_LIST[idx + 1] = \
-        CHAPTERS_LIST[idx + 1], CHAPTERS_LIST[idx]
-
+    CHAPTERS_LIST[idx], CHAPTERS_LIST[idx + 1] = CHAPTERS_LIST[idx + 1], CHAPTERS_LIST[idx]
     save_chapters_json(current_book, CHAPTERS_LIST)
     return get_chapters_display(), idx + 1
 
@@ -463,11 +585,9 @@ def reset_order():
 def preview_chapter(selection: gr.SelectData):
     if not CHAPTERS_LIST:
         return None, None
-    idx       = selection.index[0]
-    file_path = entry_path(normalize_entry(CHAPTERS_LIST[idx]))
-    if os.path.exists(file_path):
-        return file_path, idx
-    return None, None
+    idx = selection.index[0]
+    fp  = entry_path(normalize_entry(CHAPTERS_LIST[idx]))
+    return (fp, idx) if os.path.exists(fp) else (None, None)
 
 
 # ============================================================
@@ -484,11 +604,10 @@ def export_m4b():
         out_audio  = audio_dir(current_book)
         out_export = export_dir(current_book)
 
-        base_name  = current_book
-        output_m4b = os.path.join(out_export, f"{base_name}.m4b")
+        output_m4b = os.path.join(out_export, f"{current_book}.m4b")
         counter    = 1
         while os.path.exists(output_m4b):
-            output_m4b = os.path.join(out_export, f"{base_name}{counter}.m4b")
+            output_m4b = os.path.join(out_export, f"{current_book}{counter}.m4b")
             counter += 1
 
         concat_file   = os.path.join(out_audio, "concat.txt")
@@ -496,49 +615,32 @@ def export_m4b():
 
         with open(concat_file, "w", encoding="utf-8") as f:
             for e in CHAPTERS_LIST:
-                safe_path = os.path.abspath(entry_path(normalize_entry(e)))
-                safe_path = safe_path.replace("'", "'\\''")
-                f.write(f"file '{safe_path}'\n")
+                p = os.path.abspath(entry_path(normalize_entry(e))).replace("'", "'\\''")
+                f.write(f"file '{p}'\n")
 
         total_ms = 0
         with open(metadata_file, "w", encoding="utf-8") as f:
             f.write(";FFMETADATA1\n")
             for e in CHAPTERS_LIST:
-                entry     = normalize_entry(e)
-                file_path = entry_path(entry)
-                title     = entry_title(entry)
-
-                seg         = AudioSegment.from_file(file_path)
-                duration_ms = int(seg.duration_seconds * 1000)
-
-                safe_title = (
-                    title
-                    .replace("\\", "\\\\")
-                    .replace("=",  "\\=")
-                    .replace(";",  "\\;")
-                    .replace("#",  "\\#")
-                    .replace("\n", " ")
-                )
-
-                f.write("[CHAPTER]\n")
-                f.write("TIMEBASE=1/1000\n")
-                f.write(f"START={total_ms}\n")
-                f.write(f"END={total_ms + duration_ms}\n")
-                f.write(f"title={safe_title}\n")
-                total_ms += duration_ms
+                entry = normalize_entry(e)
+                seg   = AudioSegment.from_file(entry_path(entry))
+                dur   = int(seg.duration_seconds * 1000)
+                t     = (entry_title(entry)
+                         .replace("\\", "\\\\")
+                         .replace("=",  "\\=")
+                         .replace(";",  "\\;")
+                         .replace("#",  "\\#")
+                         .replace("\n", " "))
+                f.write(f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={total_ms}\nEND={total_ms+dur}\ntitle={t}\n")
+                total_ms += dur
 
         subprocess.run(
-            [
-                "ffmpeg", "-y",
-                "-f", "concat", "-safe", "0", "-i", concat_file,
-                "-i", metadata_file,
-                "-map_metadata", "1",
-                "-c", "copy",
-                output_m4b
-            ],
+            ["ffmpeg", "-y",
+             "-f", "concat", "-safe", "0", "-i", concat_file,
+             "-i", metadata_file,
+             "-map_metadata", "1", "-c", "copy", output_m4b],
             check=True
         )
-
         return f"✓  Ton livre audio est prêt ! Tu le trouveras ici : {output_m4b} 🎉"
 
     except Exception as ex:
@@ -547,29 +649,26 @@ def export_m4b():
 
 # ============================================================
 #  Interface Gradio
+#  Les gr.HTML utilisent uniquement des classes CSS définies
+#  dans :root — plus aucune couleur codée en dur ici.
 # ============================================================
 
-with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
+with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS, theme=gr.themes.Base()) as app:
 
     # ── En-tête ──────────────────────────────────────────────
     gr.HTML("""
-        <div style="padding: 32px 0 24px 0;">
-            <div style="font-family:'Fraunces',serif; font-size:32px; font-weight:300;
-                        color:#f5efe6; letter-spacing:-0.02em; margin-bottom:6px;">
-                Studio de Mamie 🎧
-            </div>
-            <div style="font-family:'DM Mono',monospace; font-size:11px;
-                        color:#4a4540; letter-spacing:0.15em; text-transform:uppercase;">
+        <div style="padding:32px 0 24px 0;">
+            <div class="app-title">Studio de Mamie 🎧</div>
+            <div class="app-subtitle">
                 Enregistre ta voix · Crée tes histoires · Écoute ton livre
             </div>
         </div>
     """)
 
-    # ── Gestion des livres (accordéon) ───────────────────────
+    # ── Gestion des livres ───────────────────────────────────
     with gr.Accordion("📚  Mes livres audio", open=False):
         book_badge = gr.HTML(_book_badge())
-
-        gr.HTML('<div style="height:12px"></div>')
+        gr.HTML('<div style="height:10px"></div>')
 
         with gr.Row():
             book_selector = gr.Dropdown(
@@ -598,11 +697,8 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
         )
 
         gr.HTML("""
-            <div style="margin-top:16px; font-family:'DM Mono',monospace;
-                        font-size:11px; color:#4a4540; line-height:1.8;">
-                <div style="color:#6b6560; letter-spacing:0.1em; margin-bottom:6px;">
-                    OÙ SONT SAUVEGARDÉS TES FICHIERS
-                </div>
+            <div class="folder-tree">
+                <div class="folder-tree-title">Où sont sauvegardés tes fichiers</div>
                 livres/<br>
                 &nbsp;&nbsp;└── MonLivre/<br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── chapters.json<br>
@@ -616,14 +712,10 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
     # ── Colonnes principales ─────────────────────────────────
     with gr.Row(equal_height=False):
 
-        # ── Colonne gauche : Enregistrement + Export ─────────
+        # ── Colonne gauche ───────────────────────────────────
         with gr.Column(scale=1):
-            gr.HTML("""
-                <div style="font-family:'Fraunces',serif; font-size:18px;
-                            color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    🎙  Ma voix
-                </div>
-            """)
+            gr.HTML('<div class="section-title">🎙  Ma voix</div>')
+
             chapter_title = gr.Textbox(
                 label="Nom de ce chapitre",
                 placeholder="ex : Le jardin de mon enfance, La rencontre de papy..."
@@ -641,13 +733,8 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
             )
 
             gr.HTML('<div style="height:24px"></div>')
+            gr.HTML('<div class="section-title">📦  Mon livre fini</div>')
 
-            gr.HTML("""
-                <div style="font-family:'Fraunces',serif; font-size:18px;
-                            color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    📦  Mon livre fini
-                </div>
-            """)
             export_button = gr.Button("🎉  Créer mon livre audio", variant="primary")
             export_status = gr.Textbox(
                 label="Ton livre est prêt ?",
@@ -655,14 +742,10 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
                 elem_classes=["status-box"]
             )
 
-        # ── Colonne droite : Chapitres + Preview ─────────────
+        # ── Colonne droite ───────────────────────────────────
         with gr.Column(scale=2):
-            gr.HTML("""
-                <div style="font-family:'Fraunces',serif; font-size:18px;
-                            color:#f5efe6; font-weight:300; margin-bottom:16px;">
-                    📋  Mes chapitres enregistrés
-                </div>
-            """)
+            gr.HTML('<div class="section-title">📋  Mes chapitres enregistrés</div>')
+
             chapters_table = gr.DataFrame(
                 headers=["N°", "Chapitre", "Durée"],
                 datatype=["number", "str", "str"],
@@ -688,13 +771,7 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
                 elem_classes=["status-box"]
             )
 
-            gr.HTML('<div style="height:16px"></div>')
-            gr.HTML("""
-                <div style="font-family:'Fraunces',serif; font-size:16px;
-                            color:#f5efe6; font-weight:300; margin-bottom:8px;">
-                    🎧  Écouter ce chapitre
-                </div>
-            """)
+            gr.HTML('<div class="section-title-sm">🎧  Écouter ce chapitre</div>')
             preview_player = gr.Audio(label=None, interactive=False)
 
     # ── État interne ─────────────────────────────────────────
@@ -707,13 +784,11 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
         inputs=new_book_name,
         outputs=[switch_status, book_selector, chapters_table, book_badge]
     )
-
     switch_button.click(
         fn=switch_book,
         inputs=book_selector,
         outputs=[switch_status, chapters_table, book_badge]
     )
-
     save_button.click(
         fn=save_chapter,
         inputs=[audio_input, chapter_title],
@@ -725,39 +800,31 @@ with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS) as app:
         fn=lambda: None,
         outputs=audio_input
     )
-
     delete_button.click(
         fn=delete_chapter,
         inputs=selected_index,
         outputs=[delete_status, chapters_table, selected_index]
     )
-
     export_button.click(fn=export_m4b, outputs=export_status)
-
     refresh_button.click(fn=get_chapters_display, outputs=chapters_table)
-
     chapters_table.select(
         fn=preview_chapter,
         outputs=[preview_player, selected_index]
     )
-
     move_up_button.click(
         fn=move_chapter_up,
         inputs=selected_index,
         outputs=[chapters_table, selected_index]
     )
-
     move_down_button.click(
         fn=move_chapter_down,
         inputs=selected_index,
         outputs=[chapters_table, selected_index]
     )
-
     reset_order_button.click(
         fn=reset_order,
         outputs=[chapters_table, selected_index]
     )
-
     app.load(fn=get_chapters_display, outputs=chapters_table)
 
 
