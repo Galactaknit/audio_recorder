@@ -21,71 +21,39 @@ CHAPTERS_LIST = []
 # ============================================================
 #  CSS — Toutes les couleurs centralisées dans :root
 # ============================================================
-#
-#  Pour changer une couleur, modifie UNIQUEMENT le bloc :root.
-#  Chaque variable est nommée par son RÔLE, pas sa teinte.
-#
-#  FONDS
-#    --color-bg-page       fond général de la page
-#    --color-bg-panel      fond des panneaux, accordéons
-#    --color-bg-input      fond des champs texte, dropdowns
-#    --color-bg-subtle     fond des status boxes, en-têtes tableau
-#    --color-bg-hover      fond au survol (lignes tableau, boutons)
-#
-#  BORDURES
-#    --color-border        bordures standard
-#    --color-border-focus  bordure au focus (inputs)
-#
-#  TEXTES
-#    --color-text-main     texte principal
-#    --color-text-soft     labels, textes secondaires
-#    --color-text-muted    textes très discrets, placeholders
-#
-#  ACCENT (boutons primaires, badge, focus)
-#    --color-accent
-#    --color-accent-hover
-#    --color-accent-light  fond transparent de l'accent
-#    --color-accent-border bordure transparente de l'accent
-#    --color-accent-text   texte sur fond accent
-#
-#  DANGER (bouton supprimer)
-#    --color-danger
-#    --color-danger-bg
-#    --color-danger-border
-#
-# ============================================================
+
 
 CUSTOM_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;400;600&display=swap');
 
 :root {
     /* ── Fonds ── */
-    --color-bg-page:      #faf8f5;   /* blanc cassé chaud — fond général         */
-    --color-bg-panel:     #f4ede4;   /* sable très clair — panneaux, tableau     */
-    --color-bg-input:     #efe6da;   /* sable doux — champs texte, dropdowns     */
-    --color-bg-subtle:    #e8ddd2;   /* sable moyen — en-têtes tableau, status   */
-    --color-bg-hover:     #e0d4c6;   /* sable soutenu — survol                   */
+    --color-bg-page:      #ffffff;
+    --color-bg-panel:     #f8f9fa;
+    --color-bg-input:     #ffffff;
+    --color-bg-subtle:    #f1f3f5;
+    --color-bg-hover:     #e9ecef;
 
     /* ── Bordures ── */
-    --color-border:       #cfc3b5;   /* beige grisé — bordures standard          */
-    --color-border-focus: #9a7455;   /* brun chaud — bordure au focus            */
+    --color-border:       #dee2e6;
+    --color-border-focus: #adb5bd;
 
     /* ── Textes ── */
-    --color-text-main:    #2c2420;   /* brun quasi-noir — texte principal        */
-    --color-text-soft:    #6e6258;   /* brun moyen — labels, secondaire          */
-    --color-text-muted:   #a0948a;   /* brun clair — discret, placeholders       */
+    --color-text-main:    #212529;
+    --color-text-soft:    #495057;
+    --color-text-muted:   #868e96;
 
     /* ── Accent ── */
-    --color-accent:        #9a7455;   /* brun-caramel — boutons primaires, badge  */
-    --color-accent-hover:  #7d5c3f;   /* brun foncé — survol boutons primaires    */
-    --color-accent-light:  rgba(154,116,85,0.10);
-    --color-accent-border: rgba(154,116,85,0.30);
-    --color-accent-text:   #faf8f5;   /* quasi-blanc — texte sur fond accent      */
+    --color-accent:        #3b82f6;
+    --color-accent-hover:  #2563eb;
+    --color-accent-light:  rgba(59,130,246,0.08);
+    --color-accent-border: rgba(59,130,246,0.25);
+    --color-accent-text:   #ffffff;
 
     /* ── Danger ── */
-    --color-danger:        #9e4e4e;
-    --color-danger-bg:     #fdf0f0;
-    --color-danger-border: #ddbebe;
+    --color-danger:        #dc2626;
+    --color-danger-bg:     #fef2f2;
+    --color-danger-border: #fecaca;
 
     /* ── Typographie ── */
     --font-display: 'Fraunces', serif;
@@ -271,6 +239,28 @@ tr:hover td {
     border: none;
     border-top: 1px solid var(--color-border);
     margin: 12px 0 16px 0;
+}
+
+/* ── Fonds Gradio (blocs, wrappers, prose, svelte) ── */
+.block,
+.block.padded,
+.form,
+.gap,
+.contain,
+.wrap,
+.prose,
+.gradio-container .block,
+.gradio-container .form,
+.gradio-container .gap,
+[class*="block"],
+[class*="wrap"],
+[class*="prose"],
+.svelte-1gfkfd6,
+fieldset,
+.label-wrap,
+.component-wrapper {
+    background-color: var(--color-bg-page) !important;
+    border-color: var(--color-border) !important;
 }
 
 /* ── Scrollbar ── */
@@ -649,8 +639,6 @@ def export_m4b():
 
 # ============================================================
 #  Interface Gradio
-#  Les gr.HTML utilisent uniquement des classes CSS définies
-#  dans :root — plus aucune couleur codée en dur ici.
 # ============================================================
 
 with gr.Blocks(title="Studio de Mamie 🎧", css=CUSTOM_CSS, theme=gr.themes.Base()) as app:
